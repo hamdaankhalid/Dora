@@ -1,8 +1,7 @@
 # Dora The Pipeline Explorer
 
 ## Pipe Tools
-- ADO pipeline related tools to solve common issues.
-
+- ADO pipeline related tools to solve common issues from dependency visualizations to querying
 
 ## Build & Run
 
