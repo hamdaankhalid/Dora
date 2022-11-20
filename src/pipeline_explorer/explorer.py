@@ -11,14 +11,15 @@ import yaml
 import requests
 
 
-
 MAX_ACCEPTABLE_REQUEST_LATENCY = 15
+
 
 @dataclass
 class PipelineInfo:
     """
     Data object to encapsulate outputs
     """
+
     name: str
     link_to_ado: str
 
@@ -28,14 +29,17 @@ class TriggerRelation:
     """
     Data Object that abstracts trigger relationship betwen pipelines
     """
+
     triggerer: PipelineInfo
     triggers: Union[PipelineInfo, None]
+
 
 @dataclass
 class SagaTriggerRelation(TriggerRelation):
     """
     Data Object that abstracts trigger relationship betwen pipelines
     """
+
     level: Union[int, None]
 
 
@@ -51,10 +55,10 @@ class PipelineUnverseMap:
         self._pat = pat
         self._base_url = f"https://dev.azure.com/{organization}/{project}"
         self._mutex = Lock()
-        self._pipeline_to_file : Dict[str, str] = {}
-        self._file_to_pipelines : Dict[str, List[str]] = {}
-        self._file_to_triggerd_by_pipelines : Dict[str, List[str]]   = {}
-        self._pipeline_to_ado_link : Dict[str, str] = {}
+        self._pipeline_to_file: Dict[str, str] = {}
+        self._file_to_pipelines: Dict[str, List[str]] = {}
+        self._file_to_triggerd_by_pipelines: Dict[str, List[str]] = {}
+        self._pipeline_to_ado_link: Dict[str, str] = {}
         self._max_aceptable_req_latency = MAX_ACCEPTABLE_REQUEST_LATENCY
 
     def create_mappings(self) -> None:
@@ -94,9 +98,7 @@ class PipelineUnverseMap:
         res = []
         for pipeline in self._file_to_pipelines[file]:
             link_to_ado = self._pipeline_to_ado_link[pipeline]
-            res.append(
-                PipelineInfo(name=pipeline, link_to_ado=link_to_ado)
-            )
+            res.append(PipelineInfo(name=pipeline, link_to_ado=link_to_ado))
         return res
 
     def get_file_for_pipeline(self, pipeline: str) -> str:
@@ -115,9 +117,7 @@ class PipelineUnverseMap:
             if pipeline not in self._pipeline_to_ado_link:
                 continue
             link_to_ado = self._pipeline_to_ado_link[pipeline]
-            res.append(
-                PipelineInfo(name=pipeline, link_to_ado=link_to_ado)
-            )
+            res.append(PipelineInfo(name=pipeline, link_to_ado=link_to_ado))
         return res
 
     def contains_pipeline_for_file(self, file: str) -> bool:
@@ -159,9 +159,7 @@ class PipelineUnverseMap:
             timeout=self._max_aceptable_req_latency,
         )
         if pipeline_detail_request.status_code != 200:
-            print(
-                f"Error accessing specific pipeline link: {pipeline_detail_request}"
-            )
+            print(f"Error accessing specific pipeline link: {pipeline_detail_request}")
             return
         pipeline_detail_request_body = pipeline_detail_request.json()
         pipeline_file_path = pipeline_detail_request_body["configuration"]["path"]
@@ -235,7 +233,7 @@ class PipelineDependencyVisualizer:
 
     def __init__(self, pipeline_universe_mapper: PipelineUnverseMap) -> None:
         self._pipeline_universe_mapper = pipeline_universe_mapper
-        self._graph : Dict[str, List[PipelineInfo]] = {
+        self._graph: Dict[str, List[PipelineInfo]] = {
             pipeline: [] for pipeline in pipeline_universe_mapper.get_pipeline_names()
         }
 
@@ -289,17 +287,18 @@ class PipelineDependencyVisualizer:
         if self._pipeline_universe_mapper.contains_file_for_pipeline(pipeline_name):
             return self._pipeline_universe_mapper.get_file_for_pipeline(pipeline_name)
 
-    
     def top_level_visualize(self) -> List[TriggerRelation]:
         """
         Display direct trigger relationship for every pipeline
         """
         res = []
-        for trigger_puller, victims in self._graph.items(): 
+        for trigger_puller, victims in self._graph.items():
             res.append(
                 TriggerRelation(
-                    self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(trigger_puller),
-                    victims
+                    self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(
+                        trigger_puller
+                    ),
+                    victims,
                 )
             )
         return res
@@ -318,22 +317,40 @@ class PipelineDependencyVisualizer:
         """
         res = []
         for triggerer, triggered in self._graph.items():
-            is_pipeline_in_triggered = len([marker for marker in triggered if marker.name == pipeline]) > 0
+            is_pipeline_in_triggered = (
+                len([marker for marker in triggered if marker.name == pipeline]) > 0
+            )
             if is_pipeline_in_triggered:
                 res.append(
-                    self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(triggerer)
+                    self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(
+                        triggerer
+                    )
                 )
         return res
 
-    def _dfs(self, triggered: str, execution_level: int, res: List[SagaTriggerRelation]) -> None:
+    def _dfs(
+        self, triggered: str, execution_level: int, res: List[SagaTriggerRelation]
+    ) -> None:
         if not triggered or triggered not in self._graph:
             return
-        
-        triggered_pipeline = self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(triggered)
+
+        triggered_pipeline = (
+            self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(triggered)
+        )
         if len(self._graph[triggered]) == 0:
-            res.append(SagaTriggerRelation(level=execution_level, triggerer=triggered_pipeline, triggers=None))
+            res.append(
+                SagaTriggerRelation(
+                    level=execution_level, triggerer=triggered_pipeline, triggers=None
+                )
+            )
             return
 
         for trigger_pulled_on in self._graph[triggered]:
-            res.append(SagaTriggerRelation(level=execution_level, triggerer=triggered_pipeline, triggers=trigger_pulled_on))
+            res.append(
+                SagaTriggerRelation(
+                    level=execution_level,
+                    triggerer=triggered_pipeline,
+                    triggers=trigger_pulled_on,
+                )
+            )
             self._dfs(trigger_pulled_on.name, execution_level + 1, res)

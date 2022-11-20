@@ -8,6 +8,9 @@ from src.web.handlers import handlers
 
 
 def create_app() -> Flask:
+    """
+    Construct instance of app
+    """
     dotenv_path = "../.env"
     load_dotenv(dotenv_path)
 
@@ -17,5 +20,6 @@ def create_app() -> Flask:
 
     return app
 
+
 if __name__ == "__main__":
-    create_app().run(debug = True)
+    create_app().run(debug=True)
