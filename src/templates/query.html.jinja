@@ -1,0 +1,67 @@
+{% extends "base.html.jinja" %}
+
+{% block content %}
+
+
+<div class="form">
+  <form method="post">
+
+    <div class="form-group">
+
+      <p class="lead"> Find All Pipelines Defined By File </p>
+
+      <div>
+        <ul>
+          {% if pipeline_defined_by_file %}
+          {% for pipeline in pipeline_defined_by_file %}
+          <li>
+            <a href="{{ pipeline.link_to_ado }}"> {{ pipeline.name }} </a>
+          </li>
+          {% endfor %}
+          {% endif %}
+        </ul>
+      </div>
+
+      <select class="form-control" id="fileName" aria-describedby="fileNameHelp" placeholder="Select File Name"
+        name="fileName">
+        {% for file_name in valid_file_names %}
+        <option value='{{ file_name }}'> {{ file_name}} </option>
+        {% endfor %}
+      </select>
+
+      <small id="fileNameHelp" class="form-text text-muted">We'll find all pipelines that correspond to a given
+        file.</small>
+    </div>
+
+
+
+    <div class="form-group">
+
+      <p class="lead"> Find File That Defines Pipeline </p>
+
+      {% if file_defining_pipeline %}
+
+      <ul>
+        <li>{{file_defining_pipeline}}</li>
+      </ul>
+
+      {% endif %}
+
+      <select class="form-control" id="pipelineName" aria-describedby="pipelineNameHelp"
+        placeholder="Select Pipeline Name" name="pipelineName">
+        {% for pipeline_name in valid_pipeline_names %}
+        <option value='{{ pipeline_name }}'> {{ pipeline_name}} </option>
+        {% endfor %}
+      </select>
+
+      <small id="pipelineNameHelp" class="form-text text-muted">We'll find the file that contains the definiton for the
+        given pipeline name.</small>
+    </div>
+
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html.jinja" %}
+
+{% block content %}
+
+<p class="lead"> Depth First Search Pipeline Trigger Saga </p>
+
+<div>
+  <ul>
+    {% for relation in trigger_saga %}
+    <li>
+      Level[{{ relation.level }}] Pipeline: <a href="{{ relation.triggerer.link_to_ado }}"> {{ relation.triggerer.name
+        }} </a> ==> Triggers ==>
+      {% if relation.triggers is not none %}
+      <a href="{{ relation.triggers.link_to_ado }}"> {{ relation.triggers.name }} </a>
+      {% else %}
+      Nobody
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<p class="lead"> Who Triggers The Pipeline </p>
+
+<div>
+  <ul>
+    {% if triggered_by %}
+    {% for pipeline in triggered_by %}
+    <li>
+      <a href="{{ pipeline.link_to_ado }}"> {{ pipeline.name }} </a>
+    </li>
+    {% endfor %}
+
+    {% else %}
+    <li> Nobody </li>
+    {% endif %}
+  </ul>
+</div>
+
+
+<div class="form">
+  <form method="post">
+    <div class="form-group">
+
+      <label for="pipelineName">Pipeline Name</label>
+
+      <select class="form-control" id="pipelineName" aria-describedby="pipelineNameHelp"
+        placeholder="Select Pipeline Name" name="pipelineName">
+        {% for pipeline_name in valid_pipeline_names %}
+        <option value='{{ pipeline_name }}'> {{ pipeline_name}} </option>
+        {% endfor %}
+      </select>
+
+      <small id="pipelineNameHelp" class="form-text text-muted">We'll perform depth first search and return the chain
+        this pipeline triggers upon it's completion.</small>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+</div>
+
+{% endblock %}
