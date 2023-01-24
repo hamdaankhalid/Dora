@@ -6,10 +6,9 @@ from dataclasses import dataclass
 import traceback
 from threading import Thread, Lock
 from typing import Union, Dict, List
-from requests.auth import HTTPBasicAuth
 import yaml
-import requests
 
+from src.ado_client.ado_client import AdoClient
 
 MAX_ACCEPTABLE_REQUEST_LATENCY = 15
 
@@ -43,40 +42,28 @@ class SagaTriggerRelation(TriggerRelation):
     level: Union[int, None]
 
 
-class PipelineUnverseMap:
+class PipelineUniverseMap:
     """
     Given a personal access token, organization, and project.
-    This class uses ADO api's to create a mapping of file to mulitple pipelines,
+    This class uses ADO api's to create a mapping of file to multiple pipelines,
     a mapping of pipeline to file name, and a mapping of a file (of a pipeline)
-    to to it's dependencies. These mappings can be interacted with various public get functions
+    to its dependencies. These mappings can be interacted with various public get functions
     """
 
     def __init__(self, pat: str, organization: str, project: str) -> None:
-        self._pat = pat
-        self._base_url = f"https://dev.azure.com/{organization}/{project}"
+        self._ado_client = AdoClient(organization, project, pat, MAX_ACCEPTABLE_REQUEST_LATENCY)
         self._mutex = Lock()
         self._pipeline_to_file: Dict[str, str] = {}
         self._file_to_pipelines: Dict[str, List[str]] = {}
         self._file_to_triggerd_by_pipelines: Dict[str, List[str]] = {}
         self._pipeline_to_ado_link: Dict[str, str] = {}
-        self._max_aceptable_req_latency = MAX_ACCEPTABLE_REQUEST_LATENCY
 
     def create_mappings(self) -> None:
         """
         This method is used to create various mappings for your
         project's pipelines. These mappings are stored for later access.
         """
-        all_pipelines_url = "/_apis/pipelines?api-version=6.0-preview.1"
-        resp = requests.get(
-            self._base_url + all_pipelines_url,
-            auth=self._basic_auth(),
-            timeout=self._max_aceptable_req_latency,
-        )
-        if resp.status_code != 200:
-            raise Exception(
-                f"Error accessing pipelines api. Status: {resp.status_code}"
-            )
-        pipelines_data = resp.json()["value"]
+        pipelines_data = self._ado_client.get_all_pipelines()
         self._hydrate_mappings(pipelines_data)
 
     def get_file_names(self) -> str:
@@ -153,23 +140,20 @@ class PipelineUnverseMap:
         pipeline_name = pipeline_data["name"]
         target_link = pipeline_data["_links"]["self"]["href"]
         ado_pipeline_link = pipeline_data["_links"]["web"]["href"]
-        pipeline_detail_request = requests.get(
-            target_link,
-            auth=self._basic_auth(),
-            timeout=self._max_aceptable_req_latency,
-        )
-        if pipeline_detail_request.status_code != 200:
-            print(f"Error accessing specific pipeline link: {pipeline_detail_request}")
+        try:
+            pipeline_detail_request_body = self._ado_client.get_pipeline_metadata(target_link)
+        except Exception:
             return
-        pipeline_detail_request_body = pipeline_detail_request.json()
+
         pipeline_file_path = pipeline_detail_request_body["configuration"]["path"]
         pipeline_file_name = pipeline_file_path.split("/")[-1]
         self._mutex.acquire()
         try:
             if pipeline_name in self._pipeline_to_file:
-                raise Exception(
-                    f"Pipeline: {pipeline_name} has more than one files, this is not expected"
-                )
+                print(f"Pipeline: {pipeline_name} has more than one files {self._pipeline_to_file[pipeline_name]}, this is not expected")
+                # raise Exception(
+                #     f"Pipeline: {pipeline_name} has more than one files, this is not expected"
+                # )
             pipeline_git_repo_id = pipeline_detail_request_body["configuration"][
                 "repository"
             ]["id"]
@@ -192,19 +176,9 @@ class PipelineUnverseMap:
     def _parse_and_find_trigger_pullers(
         self, pipeline_file_path: str, pipeline_config_git_repo_id: str
     ) -> List[str]:
-        req_url = self._construct_file_download_url(
-            pipeline_file_path, pipeline_config_git_repo_id
-        )
-        yml_data_res = requests.get(
-            req_url, auth=self._basic_auth(), timeout=self._max_aceptable_req_latency
-        )
         try:
-            if yml_data_res.status_code != 200:
-                raise Exception(
-                    f"Error making yaml file req. Status {yml_data_res.status_code}"
-                )
-
-            dependent_pipelines = yaml.safe_load(yml_data_res.content)["resources"][
+            yml_data_res = self._ado_client.get_pipeline_definition(pipeline_config_git_repo_id, pipeline_file_path)
+            dependent_pipelines = yaml.safe_load(yml_data_res)["resources"][
                 "pipelines"
             ]
             dependent_pipeline_names = []
@@ -214,15 +188,6 @@ class PipelineUnverseMap:
         except Exception:
             return []
 
-    def _basic_auth(self) -> HTTPBasicAuth:
-        return HTTPBasicAuth("ADOONLYCHECKSPAT", self._pat)
-
-    def _construct_file_download_url(self, filepath: str, git_repo_id: str) -> str:
-        return (
-            self._base_url
-            + f"/_apis/git/repositories/{git_repo_id}/items?path={filepath}&api-version=6.0"
-        )
-
 
 class PipelineDependencyVisualizer:
     """
@@ -231,7 +196,7 @@ class PipelineDependencyVisualizer:
     visualizations from.
     """
 
-    def __init__(self, pipeline_universe_mapper: PipelineUnverseMap) -> None:
+    def __init__(self, pipeline_universe_mapper: PipelineUniverseMap) -> None:
         self._pipeline_universe_mapper = pipeline_universe_mapper
         self._graph: Dict[str, List[PipelineInfo]] = {
             pipeline: [] for pipeline in pipeline_universe_mapper.get_pipeline_names()

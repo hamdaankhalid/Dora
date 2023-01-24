@@ -8,7 +8,7 @@ import os
 from typing import Union, Dict
 from src.pipeline_explorer.explorer import (
     PipelineDependencyVisualizer,
-    PipelineUnverseMap,
+    PipelineUniverseMap,
 )
 
 _PAT = os.environ.get("PAT")
@@ -31,7 +31,7 @@ def get_state(force=False) -> Dict[str, PipelineDependencyVisualizer]:
 
     if _CONSTRUCTED_PIPELINE_DEPENDENCY_VISUALIZER is None or force:
         print("initial boot up, building graph...")
-        pipeline_universe_map = PipelineUnverseMap(pat, organization_name, project)
+        pipeline_universe_map = PipelineUniverseMap(pat, organization_name, project)
         pipeline_universe_map.create_mappings()
         _CONSTRUCTED_PIPELINE_DEPENDENCY_VISUALIZER = PipelineDependencyVisualizer(
             pipeline_universe_map
