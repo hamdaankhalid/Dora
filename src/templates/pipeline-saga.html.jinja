@@ -1,9 +1,25 @@
 {% extends "base.html.jinja" %}
 
+
+{% block header_injection %}
+
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style type="text/css">
+    #mynetwork {
+      width: 1000px;
+      height: 600px;
+      border: 1px solid lightgray;
+    }
+	</style>
+{% endblock %}
+
 {% block content %}
 
-<p class="lead"> Depth First Search Pipeline Trigger Saga </p>
 
+<p class="lead"> Graphical Representation </p>
+<div id="mynetwork"></div>
+
+<p class="lead"> Depth First Search Pipeline Trigger Saga </p>
 <div>
   <ul>
     {% for relation in trigger_saga %}
@@ -58,4 +74,40 @@
   </form>
 </div>
 
+{% endblock %}
+
+{% block script_injection %}
+<script type="text/javascript">
+    var nodes = new vis.DataSet([
+      {% for node in saga_obj_graph_collection %}
+        {id: '{{ node.pipeline_info.name }}', label: '{{ node.pipeline_info.name }}'},
+      {% endfor %}
+    ]);
+
+    var edges = new vis.DataSet([
+      {% for node in saga_obj_graph_collection %}
+        {% for child in node.triggers %}
+          {from: '{{ node.pipeline_info.name }}', to: '{{ child.pipeline_info.name }}'},
+        {% endfor %}
+      {% endfor %}
+    ]);
+
+    var container = document.getElementById('mynetwork');
+    var data = {
+      nodes: nodes,
+      edges: edges
+    };
+    var options = {
+      layout: {
+        hierarchical: {
+		  enabled: true,
+		  sortMethod: 'directed',
+          direction: 'LR',
+		  nodeSpacing: 400,
+          levelSeparation: 400
+        }
+      }
+    };
+    var network = new vis.Network(container, data, options);
+  </script>
 {% endblock %}

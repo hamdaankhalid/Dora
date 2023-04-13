@@ -42,6 +42,11 @@ class SagaTriggerRelation(TriggerRelation):
     level: Union[int, None]
 
 
+@dataclass
+class SagaObjGraph:
+    pipeline_info: PipelineInfo
+    triggers: List['SagaObjGraph']
+
 class PipelineUniverseMap:
     """
     Given a personal access token, organization, and project.
@@ -57,6 +62,7 @@ class PipelineUniverseMap:
         self._file_to_pipelines: Dict[str, List[str]] = {}
         self._file_to_triggerd_by_pipelines: Dict[str, List[str]] = {}
         self._pipeline_to_ado_link: Dict[str, str] = {}
+        self._non_standard_pipelines: List[Dict[str, any]] = []
 
     def create_mappings(self) -> None:
         """
@@ -66,9 +72,12 @@ class PipelineUniverseMap:
         pipelines_data = self._ado_client.get_all_pipelines()
         self._hydrate_mappings(pipelines_data)
 
+    def get_non_standard_pipelines(self) -> List[Dict[str, any]]:
+        return self._non_standard_pipelines
+
     def get_file_names(self) -> str:
         """
-        Get an List of all files corresponding to pipelines in your project
+        Get a List of all files corresponding to pipelines in your project
         """
         return self._file_to_pipelines.keys()
 
@@ -143,17 +152,26 @@ class PipelineUniverseMap:
         try:
             pipeline_detail_request_body = self._ado_client.get_pipeline_metadata(target_link)
         except Exception:
+            return None
+
+        self._mutex.acquire()
+        if "type" not in pipeline_detail_request_body["configuration"] or \
+                pipeline_detail_request_body["configuration"]["type"] != "yaml":
+            self._non_standard_pipelines.append(pipeline_detail_request_body)
+            self._mutex.release()
             return
 
         pipeline_file_path = pipeline_detail_request_body["configuration"]["path"]
         pipeline_file_name = pipeline_file_path.split("/")[-1]
-        self._mutex.acquire()
+
         try:
             if pipeline_name in self._pipeline_to_file:
-                print(f"Pipeline: {pipeline_name} has more than one files {self._pipeline_to_file[pipeline_name]}, this is not expected")
-                # raise Exception(
-                #     f"Pipeline: {pipeline_name} has more than one files, this is not expected"
-                # )
+                print(f"Pipeline: {pipeline_name} has more than one files {self._pipeline_to_file[pipeline_name]}, "
+                      f"this is not expected")
+                raise Exception(
+                    f"Pipeline: {pipeline_name} has more than one files, this is not expected"
+                )
+
             pipeline_git_repo_id = pipeline_detail_request_body["configuration"][
                 "repository"
             ]["id"]
@@ -172,6 +190,8 @@ class PipelineUniverseMap:
             self._pipeline_to_ado_link[pipeline_name] = ado_pipeline_link
         finally:
             self._mutex.release()
+
+
 
     def _parse_and_find_trigger_pullers(
         self, pipeline_file_path: str, pipeline_config_git_repo_id: str
@@ -275,6 +295,16 @@ class PipelineDependencyVisualizer:
         result = []
         self._dfs(pipeline, 0, result)
         return result
+
+    def i_trigger_who_obj_graph(self, pipeline: str, collected_nodes: List[SagaObjGraph]) -> SagaObjGraph:
+        root_info = self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(pipeline)
+        info_of_root_triggers = self._graph[pipeline]
+        root = SagaObjGraph(pipeline_info = root_info, triggers = [])
+        for child_info in info_of_root_triggers:
+            child_saga_node = self.i_trigger_who_obj_graph(child_info.name, collected_nodes)
+            root.triggers.append(child_saga_node) 
+        collected_nodes.append(root)
+        return root
 
     def who_all_triger_me(self, pipeline: str) -> List[PipelineInfo]:
         """

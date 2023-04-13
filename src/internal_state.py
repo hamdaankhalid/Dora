@@ -33,6 +33,13 @@ def get_state(force=False) -> Dict[str, PipelineDependencyVisualizer]:
         print("initial boot up, building graph...")
         pipeline_universe_map = PipelineUniverseMap(pat, organization_name, project)
         pipeline_universe_map.create_mappings()
+
+        print("\n Non-standard pipelines that were ignored on purpose:")
+        for pipeline in pipeline_universe_map.get_non_standard_pipelines():
+            print(pipeline)
+            print("----------")
+        print("\n")
+
         _CONSTRUCTED_PIPELINE_DEPENDENCY_VISUALIZER = PipelineDependencyVisualizer(
             pipeline_universe_map
         )
