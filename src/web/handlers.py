@@ -41,7 +41,6 @@ def pipeline_saga() -> str:
     
     graph_node_collection = []
     root_node = pipeline_dependency_visualizer.i_trigger_who_obj_graph(pipeline_name, graph_node_collection)
-    print(root_node)
 
     who_triggers_me = pipeline_dependency_visualizer.who_all_triger_me(pipeline_name)
     return render_template(
