@@ -16,7 +16,7 @@
 {% block content %}
 
 
-<p class="lead"> Graphical Representation </p>
+<p class="lead"> Graphical Representation (Double-Click on nodes to get to ADO runs for the pipeline) </p>
 <div id="mynetwork"></div>
 
 <p class="lead"> Who Triggers The Pipeline </p>
@@ -91,13 +91,13 @@
       }
     };
     var network = new vis.Network(container, data, options);
-	network.on("click", function (params) {
-   if (params.nodes.length === 1) {
-     var node = nodes.get(params.nodes[0]);
-     if(node.url != null) {
-       window.open(node.url, '_blank');
+	network.on("doubleClick", function (params) {
+    if (params.nodes.length === 1) {
+      var node = nodes.get(params.nodes[0]);
+      if(node.url != null) {
+        window.open(node.url, '_blank');
+      }
      }
-    }
- });
+    });
   </script>
 {% endblock %}
