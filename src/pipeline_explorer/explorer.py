@@ -34,16 +34,11 @@ class TriggerRelation:
 
 
 @dataclass
-class SagaTriggerRelation(TriggerRelation):
-    """
-    Data Object that abstracts trigger relationship betwen pipelines
-    """
-
-    level: Union[int, None]
-
-
-@dataclass
 class SagaObjGraph:
+    """
+    Data object that represents a single node in SagaObjGraph
+    """
+    
     pipeline_info: PipelineInfo
     triggers: List['SagaObjGraph']
 
@@ -288,15 +283,10 @@ class PipelineDependencyVisualizer:
             )
         return res
 
-    def i_trigger_who_chain(self, pipeline: str) -> List[SagaTriggerRelation]:
-        """
-        Display entire trigger sequence for a given pipeline
-        """
-        result = []
-        self._dfs(pipeline, 0, result)
-        return result
-
     def i_trigger_who_obj_graph(self, pipeline: str, collected_nodes: List[SagaObjGraph]) -> SagaObjGraph:
+        """
+        Return the graph node, and append flattended nodes in collected_nodes for a pipeline trigger saga
+        """
         root_info = self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(pipeline)
         info_of_root_triggers = self._graph[pipeline]
         root = SagaObjGraph(pipeline_info = root_info, triggers = [])
@@ -323,29 +313,3 @@ class PipelineDependencyVisualizer:
                 )
         return res
 
-    def _dfs(
-        self, triggered: str, execution_level: int, res: List[SagaTriggerRelation]
-    ) -> None:
-        if not triggered or triggered not in self._graph:
-            return
-
-        triggered_pipeline = (
-            self._pipeline_universe_mapper.get_pipeline_info_for_pipeline(triggered)
-        )
-        if len(self._graph[triggered]) == 0:
-            res.append(
-                SagaTriggerRelation(
-                    level=execution_level, triggerer=triggered_pipeline, triggers=None
-                )
-            )
-            return
-
-        for trigger_pulled_on in self._graph[triggered]:
-            res.append(
-                SagaTriggerRelation(
-                    level=execution_level,
-                    triggerer=triggered_pipeline,
-                    triggers=trigger_pulled_on,
-                )
-            )
-            self._dfs(trigger_pulled_on.name, execution_level + 1, res)

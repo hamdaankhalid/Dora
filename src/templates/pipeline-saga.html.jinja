@@ -19,25 +19,7 @@
 <p class="lead"> Graphical Representation </p>
 <div id="mynetwork"></div>
 
-<p class="lead"> Depth First Search Pipeline Trigger Saga </p>
-<div>
-  <ul>
-    {% for relation in trigger_saga %}
-    <li>
-      Level[{{ relation.level }}] Pipeline: <a href="{{ relation.triggerer.link_to_ado }}"> {{ relation.triggerer.name
-        }} </a> ==> Triggers ==>
-      {% if relation.triggers is not none %}
-      <a href="{{ relation.triggers.link_to_ado }}"> {{ relation.triggers.name }} </a>
-      {% else %}
-      Nobody
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-</div>
-
 <p class="lead"> Who Triggers The Pipeline </p>
-
 <div>
   <ul>
     {% if triggered_by %}
@@ -80,7 +62,7 @@
 <script type="text/javascript">
     var nodes = new vis.DataSet([
       {% for node in saga_obj_graph_collection %}
-        {id: '{{ node.pipeline_info.name }}', label: '{{ node.pipeline_info.name }}'},
+        {id: '{{ node.pipeline_info.name }}', label: '{{ node.pipeline_info.name }}', url: '{{ node.pipeline_info.link_to_ado }}'},
       {% endfor %}
     ]);
 
@@ -109,5 +91,13 @@
       }
     };
     var network = new vis.Network(container, data, options);
+	network.on("click", function (params) {
+   if (params.nodes.length === 1) {
+     var node = nodes.get(params.nodes[0]);
+     if(node.url != null) {
+       window.open(node.url, '_blank');
+     }
+    }
+ });
   </script>
 {% endblock %}

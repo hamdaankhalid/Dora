@@ -34,20 +34,15 @@ def pipeline_saga() -> str:
             maintainer=_MAINTAINER_EMAIL,
             saga_obj_graph_collection=[]
             )
-
     pipeline_name = request.form.get("pipelineName")
     pipeline_dependency_visualizer = _state["pipeline_dependency_visualizer"]
-    trigger_saga = pipeline_dependency_visualizer.i_trigger_who_chain(pipeline_name)
-    
     graph_node_collection = []
     root_node = pipeline_dependency_visualizer.i_trigger_who_obj_graph(pipeline_name, graph_node_collection)
-
     who_triggers_me = pipeline_dependency_visualizer.who_all_triger_me(pipeline_name)
     return render_template(
         "pipeline-saga.html.jinja",
         title="Pipeline-Saga",
         valid_pipeline_names=pipeline_names,
-        trigger_saga=trigger_saga,
         triggered_by=who_triggers_me,
         saga_obj_graph_collection=graph_node_collection, 
         maintainer=_MAINTAINER_EMAIL
